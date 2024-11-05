@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/vite.svg" type="image/svg+xml" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="stylesheet" href="/src/style.css" />
+    <title>Interactive Avatar Demo</title>
+  </head>
+
+  <body>
+    <main class="container">
+      <h1>Interactive Avatar Demo</h1>
+
+      <!-- Video Section -->
+      <div class="video-container">
+        <video id="avatarVideo" autoplay playsinline></video>
+      </div>
+
+      <!-- Controls Section -->
+      <div class="controls">
+        <div class="button-group">
+          <button id="startSession">Start Session</button>
+          <button id="endSession" disabled>End Session</button>
+        </div>
+
+        <div class="input-group">
+          <input
+            type="text"
+            id="userInput"
+            placeholder="Type or use voice to talk to the avatar..."
+            aria-label="User input"
+          />
+          <button id="micButton" class="mic-button">
+            <i class="fas fa-microphone"></i>
+          </button>
+          <button id="speakButton">Send</button>
+        </div>
+
+        <div id="statusMessage" class="status-message hidden"></div>
+      </div>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
