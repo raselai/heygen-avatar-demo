@@ -57,6 +57,33 @@ h1 {
   width: 100%;
   height: auto;
   display: block;
+  border-radius: 8px;
+}
+
+#userVideo {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 180px;  /* Fixed width for user video */
+  height: auto;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  transition: transform 0.3s ease;
+}
+
+#userVideo:hover {
+  transform: scale(1.05);  /* Slight zoom on hover */
+}
+
+/* For mobile responsiveness */
+@media (max-width: 768px) {
+  #userVideo {
+    width: 120px;  /* Smaller size on mobile */
+    bottom: 10px;
+    right: 10px;
+  }
 }
 
 .controls {

@@ -20,42 +20,73 @@ const micButton = document.getElementById("micButton") as HTMLButtonElement;
 const userInput = document.getElementById("userInput") as HTMLInputElement;
 const statusMessage = document.getElementById("statusMessage") as HTMLDivElement;
 
+// Add new DOM element for webcam
+const userVideoElement = document.createElement('video');
+userVideoElement.id = 'userVideo';
+userVideoElement.autoplay = true;
+userVideoElement.playsInline = true;
+// Insert userVideo next to avatarVideo
+videoElement.parentElement?.appendChild(userVideoElement);
+
 let avatar: StreamingAvatar | null = null;
 let sessionData: any = null;
-let recognition: any = null;
+let recognition: SpeechRecognition;
+let isListening = false;
+
+// Add new variable for webcam stream
+let userStream: MediaStream | null = null;
+
+// Add these at the top of the file
 let isRecording = false;
 
+// Fix the SpeechRecognition type
+type SpeechRecognition = any;
+
 // Initialize speech recognition
-function initializeSpeechRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
+function setupSpeechRecognition() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
     console.error('Speech recognition not supported');
-    micButton.style.display = 'none';
     return;
   }
-
-  recognition = new SpeechRecognition();
-  recognition.continuous = false;
+  
+  recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.continuous = true;
   recognition.interimResults = false;
   recognition.lang = 'en-US';
 
-  recognition.onresult = (event: any) => {
-    const transcript = event.results[0][0].transcript;
-    userInput.value = transcript;
-    stopRecording();
-    // Automatically send the voice input
-    handleSpeak();
-  };
-
-  recognition.onerror = (event: any) => {
-    console.error('Speech recognition error:', event.error);
-    stopRecording();
-    showStatus('Failed to recognize speech. Please try again.');
+  recognition.onresult = async (event: any) => {
+    const last = event.results.length - 1;
+    const text = event.results[last][0].transcript;
+    if (text.trim()) {
+      userInput.value = text;
+      await handleSpeak();
+    }
   };
 
   recognition.onend = () => {
-    stopRecording();
+    if (isListening) {
+      recognition.start(); // Restart if we're supposed to be listening
+    }
+    updateMicButtonState();
   };
+
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error:', event.error);
+    isListening = false;
+    updateMicButtonState();
+  };
+}
+
+// Update the mic button visual state
+function updateMicButtonState() {
+  const micButton = document.getElementById('micButton') as HTMLButtonElement;
+  if (isListening) {
+    micButton.classList.add('active');
+    micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+  } else {
+    micButton.classList.remove('active');
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+  }
 }
 
 // Start recording
@@ -116,7 +147,10 @@ async function fetchAccessToken(): Promise<string> {
       "https://api.heygen.com/v1/streaming.create_token",
       {
         method: "POST",
-        headers: { "x-api-key": apiKey },
+        headers: { 
+          "x-api-key": apiKey,
+          "Content-Type": "application/json"
+        }
       }
     );
 
@@ -139,8 +173,25 @@ async function initializeAvatarSession() {
   showStatus('Initializing avatar session...');
 
   try {
+    // Initialize webcam
+    try {
+      userStream = await navigator.mediaDevices.getUserMedia({ 
+        video: true,
+        audio: false
+      });
+      userVideoElement.srcObject = userStream;
+    } catch (error) {
+      console.error('Error accessing webcam:', error);
+      showStatus('Failed to access webcam');
+    }
+
     const token = await fetchAccessToken();
-    avatar = new StreamingAvatar({ token });
+    
+    // Initialize with debug mode
+    avatar = new StreamingAvatar({ 
+      token,
+      debug: true // Enable debug logging
+    });
 
     sessionData = await avatar.createStartAvatar({
       quality: AvatarQuality.High,
@@ -155,7 +206,7 @@ Core Traits:
 - Naturally curious about students' goals and aspirations
 
 Key Responsibilities:
-1. Welcome students and make them feel comfortable sharing their educational journey
+1. Whenever the session starts, Welcome students with your name, Example: Hello, I am Sarah, an Educational Counseling Specialist at Glovera.in. and make them feel comfortable sharing their educational journey
 2. Gather essential information including:
    - Academic background
    - Target countries/regions
@@ -197,9 +248,14 @@ Remember to always prioritize student needs and maintain a balance between being
 
     avatar.on(StreamingEvents.STREAM_READY, handleStreamReady);
     avatar.on(StreamingEvents.STREAM_DISCONNECTED, handleStreamDisconnected);
+
+    // Start speech recognition automatically
+    isListening = true;
+    recognition.start();
+    updateMicButtonState();
   } catch (error) {
     console.error('Failed to initialize avatar session:', error);
-    showStatus('Failed to start avatar session. Please try again.');
+    showStatus('Failed to start avatar session. Please check your API key and try again.');
     startButton.disabled = false;
     startButton.classList.remove('loading');
   }
@@ -244,13 +300,26 @@ async function terminateAvatarSession() {
     await avatar.stopAvatar();
     videoElement.srcObject = null;
     avatar = null;
+
+    // Stop webcam stream
+    if (userStream) {
+      userStream.getTracks().forEach(track => track.stop());
+      userVideoElement.srcObject = null;
+      userStream = null;
+    }
+
+    // Stop speech recognition
+    isListening = false;
+    recognition.stop();
+    updateMicButtonState();
+
     showStatus('Session ended successfully');
   } catch (error) {
     console.error('Error terminating avatar session:', error);
     showStatus('Error ending session');
   } finally {
     endButton.classList.remove('loading');
-    stopRecording(); // Ensure recording is stopped when session ends
+    stopRecording();
   }
 }
 
@@ -295,14 +364,26 @@ function toggleRecording() {
   }
 }
 
+// Update the toggleMic function to handle manual control
+function toggleMic() {
+  if (isListening) {
+    isListening = false;
+    recognition.stop();
+  } else {
+    isListening = true;
+    recognition.start();
+  }
+  updateMicButtonState();
+}
+
 // Initialize speech recognition
-initializeSpeechRecognition();
+setupSpeechRecognition();
 
 // Event listeners for buttons
 startButton.addEventListener("click", initializeAvatarSession);
 endButton.addEventListener("click", terminateAvatarSession);
 speakButton.addEventListener("click", handleSpeak);
-micButton.addEventListener("click", toggleRecording);
+micButton.addEventListener("click", toggleMic);
 
 // Add enter key support for the input field
 userInput.addEventListener("keypress", (event) => {
@@ -310,3 +391,21 @@ userInput.addEventListener("keypress", (event) => {
     handleSpeak();
   }
 });
+
+// Add some CSS for the active mic state
+const style = document.createElement('style');
+style.textContent = `
+  #micButton.active {
+    background-color: #4CAF50;
+    color: white;
+  }
+`;
+document.head.appendChild(style);
+
+// Add this function that was missing
+async function handleUserInput(text: string) {
+  if (!avatar || !text.trim()) return;
+  
+  userInput.value = text;
+  await handleSpeak();
+}
