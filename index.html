@@ -44,6 +44,20 @@
 
         <div id="statusMessage" class="status-message hidden"></div>
       </div>
+
+      <!-- Add this after your existing controls div -->
+      <div class="pdf-upload-container">
+        <h3>Please upload your resume</h3>
+        <div class="upload-box">
+          <input type="file" id="pdfInput" accept=".pdf" class="file-input" />
+          <label for="pdfInput" class="file-label">
+            <i class="fas fa-file-pdf"></i>
+            <span>Choose PDF file or drag & drop</span>
+          </label>
+          <div id="uploadStatus" class="upload-status"></div>
+        </div>
+        <div id="pdfName" class="pdf-name"></div>
+      </div>
     </main>
 
     <script type="module" src="/src/main.ts"></script>

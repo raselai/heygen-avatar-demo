@@ -37,6 +37,82 @@ let isListening = false;
 let userStream: MediaStream | null = null;
 
 
+// Add these variables with your other declarations at the top
+let pdfInput: HTMLInputElement | null;
+let uploadBox: HTMLElement | null;
+let uploadStatus: HTMLElement | null;
+let pdfName: HTMLElement | null;
+
+// Add this to your initialization function (where you initialize other elements)
+function initializeElements() {
+  // ... your existing element initializations ...
+
+  // Add these new initializations
+  pdfInput = document.getElementById('pdfInput') as HTMLInputElement;
+  uploadBox = document.querySelector('.upload-box');
+  uploadStatus = document.getElementById('uploadStatus');
+  pdfName = document.getElementById('pdfName');
+}
+
+// Add this new function
+function initializePdfUpload() {
+  if (!pdfInput || !uploadBox || !uploadStatus || !pdfName) return;
+
+  pdfInput.addEventListener('change', handlePdfUpload);
+
+  uploadBox.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadBox?.classList.add('dragover');
+  });
+
+  uploadBox.addEventListener('dragleave', () => {
+    uploadBox?.classList.remove('dragover');
+  });
+
+  uploadBox.addEventListener('drop', (e: DragEvent) => {
+    e.preventDefault();
+    uploadBox?.classList.remove('dragover');
+    if (e.dataTransfer && pdfInput) {
+      pdfInput.files = e.dataTransfer.files;
+      handlePdfUpload({ target: pdfInput } as unknown as Event);
+    }
+  });
+}
+
+// Add this new function
+async function handlePdfUpload(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+
+  if (!file || !uploadBox || !uploadStatus || !pdfName) return;
+
+  if (file.type !== 'application/pdf') {
+    uploadStatus.textContent = 'Please upload a PDF file';
+    uploadStatus.style.color = '#ff4444';
+    return;
+  }
+
+  uploadBox.classList.add('loading');
+  uploadStatus.textContent = 'Uploading...';
+  uploadStatus.style.color = 'inherit';
+
+  try {
+    // Here you would add your PDF upload logic
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    uploadStatus.textContent = 'Upload successful!';
+    uploadStatus.style.color = '#4CAF50';
+    pdfName.textContent = file.name;
+
+  } catch (error) {
+    uploadStatus.textContent = 'Upload failed. Please try again.';
+    uploadStatus.style.color = '#ff4444';
+    console.error('Upload error:', error);
+  } finally {
+    uploadBox.classList.remove('loading');
+  }
+}
+
 // Fix the SpeechRecognition type
 type SpeechRecognition = any;
 
@@ -190,7 +266,7 @@ Key Responsibilities:
    - Budget considerations
    - Timeline for studies
 3. Provide initial guidance on suitable programs and universities. Provide only two universities and their details.
-4. Schedule follow-up consultations with Glovera's counseling team
+4. Schedule follow-up consultations with Glovera's counseling team and request the student to upload the documents.
 
 Communication Guidelines:
 - Use natural language and conversational tone
@@ -229,6 +305,9 @@ Remember to always prioritize student needs and maintain a balance between being
     isListening = true;
     recognition.start();
     updateMicButtonState();
+
+    initializeElements();
+    initializePdfUpload();
   } catch (error) {
     console.error('Failed to initialize avatar session:', error);
     showStatus('Failed to start avatar session. Please check your API key and try again.');
