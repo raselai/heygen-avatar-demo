@@ -36,11 +36,25 @@ let isListening = false;
 // Add new variable for webcam stream
 let userStream: MediaStream | null = null;
 
-// Add these at the top of the file
-let isRecording = false;
 
 // Fix the SpeechRecognition type
 type SpeechRecognition = any;
+
+// Add these type definitions at the top of the file
+interface SpeechRecognitionEvent {
+  results: {
+    length: number;
+    [index: number]: {
+      [index: number]: {
+        transcript: string;
+      };
+    };
+  };
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+}
 
 // Initialize speech recognition
 function setupSpeechRecognition() {
@@ -54,7 +68,7 @@ function setupSpeechRecognition() {
   recognition.interimResults = false;
   recognition.lang = 'en-US';
 
-  recognition.onresult = async (event: any) => {
+  recognition.onresult = async (event: SpeechRecognitionEvent) => {
     const last = event.results.length - 1;
     const text = event.results[last][0].transcript;
     if (text.trim()) {
@@ -70,7 +84,7 @@ function setupSpeechRecognition() {
     updateMicButtonState();
   };
 
-  recognition.onerror = (event) => {
+  recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
     console.error('Speech recognition error:', event.error);
     isListening = false;
     updateMicButtonState();
@@ -87,43 +101,6 @@ function updateMicButtonState() {
     micButton.classList.remove('active');
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
   }
-}
-
-// Start recording
-function startRecording() {
-  if (!recognition) {
-    showStatus('Speech recognition not supported in this browser');
-    return;
-  }
-
-  if (!avatar) {
-    showStatus('Please start a session first');
-    return;
-  }
-
-  try {
-    recognition.start();
-    isRecording = true;
-    micButton.classList.add('recording');
-    showStatus('Listening...');
-  } catch (error) {
-    console.error('Error starting speech recognition:', error);
-    showStatus('Error starting voice recognition');
-  }
-}
-
-// Stop recording
-function stopRecording() {
-  if (!recognition) return;
-
-  try {
-    recognition.stop();
-  } catch (error) {
-    console.error('Error stopping speech recognition:', error);
-  }
-  
-  isRecording = false;
-  micButton.classList.remove('recording');
 }
 
 // Helper function to show status message
@@ -190,7 +167,6 @@ async function initializeAvatarSession() {
     // Initialize with debug mode
     avatar = new StreamingAvatar({ 
       token,
-      debug: true // Enable debug logging
     });
 
     sessionData = await avatar.createStartAvatar({
@@ -262,7 +238,7 @@ Remember to always prioritize student needs and maintain a balance between being
 }
 
 // Handle when avatar stream is ready
-function handleStreamReady(event: any) {
+function handleStreamReady(event: { detail: MediaStream }) {
   if (event.detail && videoElement) {
     videoElement.srcObject = event.detail;
     videoElement.onloadedmetadata = () => {
@@ -319,7 +295,6 @@ async function terminateAvatarSession() {
     showStatus('Error ending session');
   } finally {
     endButton.classList.remove('loading');
-    stopRecording();
   }
 }
 
@@ -352,15 +327,6 @@ async function handleSpeak() {
   } finally {
     speakButton.disabled = false;
     speakButton.classList.remove('loading');
-  }
-}
-
-// Toggle recording state
-function toggleRecording() {
-  if (isRecording) {
-    stopRecording();
-  } else {
-    startRecording();
   }
 }
 
@@ -401,11 +367,3 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
-
-// Add this function that was missing
-async function handleUserInput(text: string) {
-  if (!avatar || !text.trim()) return;
-  
-  userInput.value = text;
-  await handleSpeak();
-}
